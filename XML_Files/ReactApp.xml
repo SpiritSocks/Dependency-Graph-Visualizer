@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<Configuration>
+	<Name>ReactApp</Name>
+	<Url>https://registry.npmjs.org/react</Url>
+	<TestMode>true</TestMode>
+	<Version>18.2.0</Version>
+	<OutputFile>dependency_graph.png</OutputFile>
+</Configuration>
