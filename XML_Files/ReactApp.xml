@@ -5,5 +5,5 @@
 	<Url>https://registry.npmjs.org/react</Url>
 	<TestMode>true</TestMode>
 	<Version>18.2.0</Version>
-	<OutputFile>dependency_graph.png</OutputFile>
+	<TestFile>react_repo.txt</TestFile>
 </Configuration>

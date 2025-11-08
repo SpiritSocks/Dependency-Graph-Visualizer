@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 
 <Configuration>
-	<Name>ExpressApp</Name>
+	<Name>MongooseApp</Name>
 	<Url>https://registry.npmjs.org/mongoose</Url>
 	<TestMode>true</TestMode>
 	<Version>latest</Version>
-	<OutputFile>dependency_graph.png</OutputFile>
+	<TestFile>mongoose_repo.txt</TestFile>
 </Configuration>

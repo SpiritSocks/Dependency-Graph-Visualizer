@@ -1,0 +1,7 @@
+﻿NextApp: ReactApp Webpack Babel
+ReactApp: JSX Renderer
+Webpack: Babel
+Babel: Parser
+Renderer:
+Parser:
+JSX:

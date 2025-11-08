@@ -5,5 +5,5 @@
 	<Url>https://example.com/repo</Url>
 	<TestMode>true</TestMode>
 	<Version>1.0</Version>
-	<OutputFile>dependency_graph.png</OutputFile>
+	<TestFile>test_repo.txt</TestFile>
 </Configuration>

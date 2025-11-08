@@ -1,0 +1,6 @@
+﻿ReactApp: JSX Reconciler Scheduler
+JSX: Parser
+Reconciler: Fiber
+Scheduler:
+Parser:
+Fiber:

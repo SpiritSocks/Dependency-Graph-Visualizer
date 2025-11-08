@@ -5,5 +5,5 @@
 	<Url>https://registry.npmjs.org/express</Url>
 	<TestMode>true</TestMode>
 	<Version>4.18.2</Version>
-	<OutputFile>dependency_graph.png</OutputFile>
+	<TestFile>express_repo.txt</TestFile>
 </Configuration>
