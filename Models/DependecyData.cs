@@ -14,6 +14,6 @@ namespace DependencyGraphVisualization.Models
         public string? Url { get; set; }
         public bool TestMode { get; set; }
         public string? Version { get; set; }
-        public string? OutputFile { get; set; }
+        public string? TestFile { get; set; }
     }
 }

@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 
 <Configuration>
-	<Name>ExpressApp</Name>
+	<Name>NextApp</Name>
 	<Url>https://registry.npmjs.org/next</Url>
 	<TestMode>true</TestMode>
 	<Version>14.2.3</Version>
-	<OutputFile>dependency_graph.png</OutputFile>
+	<TestFile>next_repo.txt</TestFile>
 </Configuration>

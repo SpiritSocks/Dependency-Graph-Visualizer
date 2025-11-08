@@ -30,7 +30,7 @@ namespace DependencyGraphVisualization
                         dataPair.Add("URL", data.Url);
                         dataPair.Add("Test-mode", data.TestMode.ToString());
                         dataPair.Add("Version", data.Version);
-                        dataPair.Add("Output-file-name", data.OutputFile);
+                        dataPair.Add("Test-file-name", data.TestFile);
                     }
                 }
                 catch (XmlException ex)
@@ -100,6 +100,42 @@ namespace DependencyGraphVisualization
                     Console.WriteLine("Error!");
                     continue;
                 }
+
+
+                // === Этап 3 === //
+                bool testMode = bool.Parse(dataPair["Test-mode"]!);
+                string? testFile = dataPair["Test-file-name"];
+                string filter = dataPair.ContainsKey("Filter") ? dataPair["Filter"] ?? "" : "";
+
+                if (testMode)
+                {
+                    Console.WriteLine("\n=== Test mode enabled ===");
+
+                    if (string.IsNullOrWhiteSpace(testFile))
+                    {
+                        Console.WriteLine("Test file name not specified in XML.");
+                        continue;
+                    }
+
+                    string testFilePath = Path.Combine(GetProjectRoot(), "TestFiles", testFile);
+
+                    if (!File.Exists(testFilePath))
+                    {
+                        Console.WriteLine($"Test file '{testFile}' not found at {testFilePath}");
+                        continue;
+                    }
+
+                    Console.WriteLine($"Loading dependencies from: {testFilePath}");
+                    var graph = LoadDependencies(testFilePath);
+
+                    Console.WriteLine("\nDFS traversal (iterative):");
+                    DFS_Iterative(dataPair["Name"]!, graph, filter);
+                }
+                else
+                {
+                    Console.WriteLine("\nTest mode is OFF — skipping stage 3.");
+                }
+
             }
         }
 
@@ -158,6 +194,60 @@ namespace DependencyGraphVisualization
             }
 
             return deps;
+        }
+
+        public static Dictionary<string, List<string>> LoadDependencies (string path)
+        {
+            var dependencies = new Dictionary<string, List<string>>();
+            foreach (var line in File.ReadLines (path))
+            {
+
+                if (string.IsNullOrWhiteSpace(line) || !line.Contains(":")) continue;
+
+                var parts = line.Split(':', 2);
+                var package = parts[0].Trim();
+                var deps = parts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .ToList();
+
+                dependencies[package] = deps;
+            }
+
+            return dependencies;
+        }
+
+
+        public static void DFS_Iterative(string startPackage, Dictionary<string, List<string>> graph, string filter)
+        {
+            var visited = new HashSet<string>();
+            var stack = new Stack<string>();
+            stack.Push(startPackage);
+
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+
+                // фильтрация по подстроке
+                if (current.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!visited.Add(current))
+                {
+                    Console.WriteLine($"[!] Цикл обнаружен у {current}");
+                    continue;
+                }
+
+                Console.WriteLine(current);
+
+                if (graph.TryGetValue(current, out var deps))
+                {
+                    foreach (var dep in deps)
+                    {
+                        if (!visited.Contains(dep))
+                            stack.Push(dep);
+                    }
+                }
+            }
         }
 
     }
