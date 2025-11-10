@@ -1,9 +1,19 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Configuration>
-	<Name>ReactApp</Name>
-	<Url>https://registry.npmjs.org/react</Url>
-	<TestMode>true</TestMode>
-	<Version>18.2.0</Version>
-	<TestFile>react_repo.txt</TestFile>
+    <Name>ReactApp</Name>
+    <Url>https://registry.npmjs.org/react</Url>
+    <TestMode>true</TestMode>
+    <Version>18.2.0</Version>
+    <TestFile>react_repo.txt</TestFile>
+
+    <!-- Параметры этапов 4–5 -->
+    <ExcludeSubstring>-test</ExcludeSubstring>
+    <MaxDepth>10</MaxDepth>
+
+    <PrintLoadOrder>true</PrintLoadOrder>
+    <PrintAsciiTree>true</PrintAsciiTree>
+
+    <PlantUmlOut>out/react_graph.puml</PlantUmlOut>
+    <SvgOut>out/react_graph.svg</SvgOut>
 </Configuration>
