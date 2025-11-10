@@ -1,254 +1,138 @@
-﻿using DependencyGraphVisualization.Models;
-using System.Text.Json;
-using System.Xml;
-using System.Xml.Serialization;
-
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Xml.Linq;
+using DependencyGraphVisualization.Export;
+using DependencyGraphVisualization.Services;
 
 namespace DependencyGraphVisualization
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
-            List<string> xmlFiles = GetAllXmlFiles();
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            Console.WriteLine("=== Dependency Graph Visualizer (Вариант 27) ===");
 
-            foreach ( var filePath in xmlFiles )
+            // Определяем имя конфигурационного файла
+            string configName = args.Length > 0 ? args[0] : "config";
+            string configPath;
+
+            if (File.Exists($"XML_Files/{configName}.xml"))
+                configPath = $"XML_Files/{configName}.xml";
+            else if (File.Exists($"{configName}.xml"))
+                configPath = $"{configName}.xml";
+            else
+                configPath = "config.xml";
+
+            if (!File.Exists(configPath))
             {
-                Console.WriteLine($"\nProcessing file: {Path.GetFileName(filePath)}");
+                Console.WriteLine($"Не найден файл конфигурации: {configPath}");
+                Console.WriteLine("Пример запуска: dotnet run ExpressApp");
+                return;
+            }
 
-                Dictionary<string, string?> dataPair = new();
+            Console.WriteLine($"Используется конфигурация: {configPath}");
 
-                try
+            // Чтение XML
+            var xdoc = XDocument.Load(configPath);
+
+            var cfg = new
+            {
+                Package = xdoc.Root?.Element("Name")?.Value ?? "",
+                RepositoryUrl = xdoc.Root?.Element("Url")?.Value ?? "",
+                UseTestRepo = (xdoc.Root?.Element("TestMode")?.Value ?? "false")
+                    .Equals("true", StringComparison.OrdinalIgnoreCase),
+                Version = xdoc.Root?.Element("Version")?.Value ?? "",
+                TestFile = xdoc.Root?.Element("TestFile")?.Value ?? "",
+                ExcludeSubstring = xdoc.Root?.Element("ExcludeSubstring")?.Value ?? "",
+                MaxDepth = int.TryParse(xdoc.Root?.Element("MaxDepth")?.Value, out var md) ? md : int.MaxValue,
+                PrintLoadOrder = (xdoc.Root?.Element("PrintLoadOrder")?.Value ?? "false")
+                    .Equals("true", StringComparison.OrdinalIgnoreCase),
+                PrintAsciiTree = (xdoc.Root?.Element("PrintAsciiTree")?.Value ?? "false")
+                    .Equals("true", StringComparison.OrdinalIgnoreCase),
+                PlantUmlOut = xdoc.Root?.Element("PlantUmlOut")?.Value ?? "",
+                SvgOut = xdoc.Root?.Element("SvgOut")?.Value ?? ""
+            };
+
+            if (string.IsNullOrWhiteSpace(cfg.Package))
+            {
+                Console.WriteLine("Ошибка: в конфигурации не указано имя пакета (<Name>).");
+                return;
+            }
+
+            Console.WriteLine($"Пакет: {cfg.Package}");
+            Console.WriteLine($"Репозиторий: {cfg.RepositoryUrl}");
+            Console.WriteLine();
+
+            // Построение тестового графа зависимостей (заглушка)
+            var graph = BuildGraphStub(cfg.Package);
+
+            Console.WriteLine($"Граф зависимостей сформирован. Количество узлов: {graph.Count}");
+
+            Func<string, bool>? excludePredicate = null;
+            if (!string.IsNullOrWhiteSpace(cfg.ExcludeSubstring))
+                excludePredicate = (s) => s.Contains(cfg.ExcludeSubstring, StringComparison.OrdinalIgnoreCase);
+
+            // Этап 4. Дополнительные операции
+            if (cfg.PrintLoadOrder)
+            {
+                Console.WriteLine("\n=== Этап 4: Порядок загрузки зависимостей ===");
+                var service = new LoadOrderService(graph);
+                var (order, cycles) = service.GetLoadOrder(cfg.Package, cfg.MaxDepth, excludePredicate);
+
+                foreach (var p in order)
+                    Console.WriteLine(" • " + p);
+
+                if (cycles.Count > 0)
                 {
-                    using (XmlReader reader = XmlReader.Create(filePath))
-                    {
-                        XmlSerializer serializer = new XmlSerializer(typeof(DependecyData));
-
-                        var data = (DependecyData)serializer.Deserialize(reader)!;
-
-                        dataPair.Add("Name", data.Name);
-                        dataPair.Add("URL", data.Url);
-                        dataPair.Add("Test-mode", data.TestMode.ToString());
-                        dataPair.Add("Version", data.Version);
-                        dataPair.Add("Test-file-name", data.TestFile);
-                    }
+                    Console.WriteLine("\nОбнаружены циклы зависимостей:");
+                    foreach (var cyc in cycles)
+                        Console.WriteLine("   - " + string.Join(" -> ", cyc) + " -> " + cyc[0]);
                 }
-                catch (XmlException ex)
+
+                Directory.CreateDirectory("out");
+                File.WriteAllLines("out/load_order.txt", order);
+                Console.WriteLine("Результат сохранён в out/load_order.txt");
+            }
+
+            // Этап 5. Визуализация
+            if (cfg.PrintAsciiTree)
+            {
+                Console.WriteLine("\n=== Этап 5: ASCII-дерево зависимостей ===");
+                AsciiTreePrinter.Print(cfg.Package, graph, cfg.MaxDepth, excludePredicate);
+            }
+
+            if (!string.IsNullOrWhiteSpace(cfg.PlantUmlOut))
+            {
+                Console.WriteLine("\n=== Этап 5: Генерация PlantUML ===");
+                var puml = PlantUmlExporter.ToPlantUml(graph, cfg.Package);
+                PlantUmlExporter.SavePuml(cfg.PlantUmlOut, puml);
+                Console.WriteLine($"Файл PlantUML сохранён: {cfg.PlantUmlOut}");
+
+                if (!string.IsNullOrWhiteSpace(cfg.SvgOut))
                 {
-                    Console.WriteLine($"XML Error: {ex.Message}");
-                    Console.WriteLine($"Line: {ex.LineNumber}, Position: {ex.LinePosition}");
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Console.WriteLine($"Deserialization error: {ex.Message}");
-                    if (ex.InnerException != null)
-                    {
-                        Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error: {ex.Message}");
-                }
-
-
-                foreach (var pair in dataPair)
-                {
-                    if (string.IsNullOrEmpty(pair.Value))
-                    {
-                        throw new FormatException("Value cannot be null or empty");
-                    }
-
-                    Console.WriteLine($"{pair.Key}: {pair.Value}");
-                }
-
-                Console.WriteLine();
-
-
-                // === Этап 2 === //
-
-                string? reportUrl = dataPair["URL"];
-                string? version = dataPair["Version"];
-
-                if (string.IsNullOrWhiteSpace(reportUrl))
-                {
-                    Console.WriteLine("URL not specified");
-                    return;
-                }
-
-                string packageName = reportUrl.TrimEnd('/').Split('/').Last();
-                version ??= "latest";
-
-                try
-                {
-                    var deps = await FetchDependencyAsync(packageName, version);
-
-                    if (deps.Count == 0)
-                    {
-                        Console.WriteLine("Package has not dependencies");
-                    }
+                    if (PlantUmlExporter.TryRenderSvg(cfg.PlantUmlOut, cfg.SvgOut, out var err))
+                        Console.WriteLine($"SVG-файл сохранён: {cfg.SvgOut}");
                     else
-                    {
-                        foreach (var dep in deps)
-                        {
-                            Console.WriteLine($" - {dep}");
-                        }
-                    }
+                        Console.WriteLine($"Ошибка генерации SVG через PlantUML: {err}");
                 }
-                catch (Exception)
-                {
-                    Console.WriteLine("Error!");
-                    continue;
-                }
-
-
-                // === Этап 3 === //
-                bool testMode = bool.Parse(dataPair["Test-mode"]!);
-                string? testFile = dataPair["Test-file-name"];
-                string filter = dataPair.ContainsKey("Filter") ? dataPair["Filter"] ?? "" : "";
-
-                if (testMode)
-                {
-                    Console.WriteLine("\n=== Test mode enabled ===");
-
-                    if (string.IsNullOrWhiteSpace(testFile))
-                    {
-                        Console.WriteLine("Test file name not specified in XML.");
-                        continue;
-                    }
-
-                    string testFilePath = Path.Combine(GetProjectRoot(), "TestFiles", testFile);
-
-                    if (!File.Exists(testFilePath))
-                    {
-                        Console.WriteLine($"Test file '{testFile}' not found at {testFilePath}");
-                        continue;
-                    }
-
-                    Console.WriteLine($"Loading dependencies from: {testFilePath}");
-                    var graph = LoadDependencies(testFilePath);
-
-                    Console.WriteLine("\nDFS traversal (iterative):");
-                    DFS_Iterative(dataPair["Name"]!, graph, filter);
-                }
-                else
-                {
-                    Console.WriteLine("\nTest mode is OFF — skipping stage 3.");
-                }
-
             }
+
+            Console.WriteLine("\n=== Выполнение завершено ===");
         }
 
-        public static List<string> GetAllXmlFiles()
+        private static Dictionary<string, List<string>> BuildGraphStub(string root)
         {
-            string xmlDir = Path.Combine(GetProjectRoot(), "XML_Files");
-
-            if (!Directory.Exists(xmlDir))
+            return new Dictionary<string, List<string>>
             {
-                Console.WriteLine("Directory not found");
-                return new List<string>();
-            }
-
-            var xmlFiles = Directory.GetFiles(xmlDir, "*.xml").ToList();
-
-            Console.WriteLine("Found XML files: ");
-
-            foreach (var file in xmlFiles)
-            {
-                Console.WriteLine($" - {Path.GetFileName(file)}");
-            }
-
-            return xmlFiles;
+                [root] = new List<string> { "musl", "libc-utils", "busybox" },
+                ["musl"] = new List<string> { "libgcc" },
+                ["busybox"] = new List<string> { "libc-utils" },
+                ["libc-utils"] = new List<string>(),
+                ["libgcc"] = new List<string>()
+            };
         }
-
-
-        public static string GetProjectRoot()
-        {
-            string currentDir = Directory.GetCurrentDirectory();
-            DirectoryInfo directory = new DirectoryInfo(currentDir);
-
-            while (directory != null && !directory.GetFiles("*.csproj").Any())
-            {
-                directory = directory.Parent!;
-            }
-
-            return directory?.FullName ?? currentDir;
-        }
-
-        public static async Task<List<string>> FetchDependencyAsync(string packageName, string version)
-        {
-            using var client = new HttpClient();
-            var url = $"https://registry.npmjs.org/{packageName}/{version}";
-
-            var response = await client.GetStringAsync(url);
-            using var jsonDoc = JsonDocument.Parse(response);
-
-            var deps = new List<string>();
-            if (jsonDoc.RootElement.TryGetProperty("dependencies", out var depsProp))
-            {
-                Console.WriteLine("Dependencies: ");
-                foreach (var dep in depsProp.EnumerateObject())
-                {
-                    deps.Add(dep.Name);
-                }
-            }
-
-            return deps;
-        }
-
-        public static Dictionary<string, List<string>> LoadDependencies (string path)
-        {
-            var dependencies = new Dictionary<string, List<string>>();
-            foreach (var line in File.ReadLines (path))
-            {
-
-                if (string.IsNullOrWhiteSpace(line) || !line.Contains(":")) continue;
-
-                var parts = line.Split(':', 2);
-                var package = parts[0].Trim();
-                var deps = parts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => x.Trim())
-                    .ToList();
-
-                dependencies[package] = deps;
-            }
-
-            return dependencies;
-        }
-
-
-        public static void DFS_Iterative(string startPackage, Dictionary<string, List<string>> graph, string filter)
-        {
-            var visited = new HashSet<string>();
-            var stack = new Stack<string>();
-            stack.Push(startPackage);
-
-            while (stack.Count > 0)
-            {
-                var current = stack.Pop();
-
-                // фильтрация по подстроке
-                if (current.Contains(filter, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (!visited.Add(current))
-                {
-                    Console.WriteLine($"[!] Цикл обнаружен у {current}");
-                    continue;
-                }
-
-                Console.WriteLine(current);
-
-                if (graph.TryGetValue(current, out var deps))
-                {
-                    foreach (var dep in deps)
-                    {
-                        if (!visited.Contains(dep))
-                            stack.Push(dep);
-                    }
-                }
-            }
-        }
-
     }
 }

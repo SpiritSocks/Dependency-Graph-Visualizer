@@ -1,9 +1,18 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Configuration>
-	<Name>NextApp</Name>
-	<Url>https://registry.npmjs.org/next</Url>
-	<TestMode>true</TestMode>
-	<Version>14.2.3</Version>
-	<TestFile>next_repo.txt</TestFile>
+    <Name>NextApp</Name>
+    <Url>https://registry.npmjs.org/next</Url>
+    <TestMode>true</TestMode>
+    <Version>14.2.3</Version>
+    <TestFile>next_repo.txt</TestFile>
+
+    <ExcludeSubstring>-test</ExcludeSubstring>
+    <MaxDepth>10</MaxDepth>
+
+    <PrintLoadOrder>true</PrintLoadOrder>
+    <PrintAsciiTree>true</PrintAsciiTree>
+
+    <PlantUmlOut>out/next_graph.puml</PlantUmlOut>
+    <SvgOut>out/next_graph.svg</SvgOut>
 </Configuration>
